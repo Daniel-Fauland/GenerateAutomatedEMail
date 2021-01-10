@@ -44,8 +44,8 @@ class model():
         body = []
         reply = []
         for i in range(len(emails)):
-            s1 = emails.iloc[i]["body"]
-            s2 = emails.iloc[i]["reply"]
+            s1 = str(emails.iloc[i]["question"])
+            s2 = str(emails.iloc[i]["answer"])
             body.append(self.preprocess_sentence(s1))
             reply.append(self.preprocess_sentence(s2))
         return body, reply
@@ -249,11 +249,12 @@ class model():
     # run function to train the model
     # ============================================================
     def trainModel(self, settings):
-        # TF GPU fix
-        config = tf.compat.v1.ConfigProto(gpu_options=tf.compat.v1.GPUOptions(per_process_gpu_memory_fraction=0.8))
-        config.gpu_options.allow_growth = True
-        session = tf.compat.v1.Session(config=config)
-        tf.compat.v1.keras.backend.set_session(session)
+        # # TF GPU fix
+        # config = tf.compat.v1.ConfigProto(gpu_options=tf.compat.v1.GPUOptions(per_process_gpu_memory_fraction=0.8))
+        # config.gpu_options.allow_growth = True
+        # session = tf.compat.v1.Session(config=config)
+        # tf.compat.v1.keras.backend.set_session(session)
+        os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
         filepath = settings["filepath"]
         emails = pd.read_csv(filepath)
@@ -325,13 +326,10 @@ class model():
         checkpoint_dir = settings["checkpoint_dir"]
         email = settings["email"]
 
-        # CHECKPOINT LADEN
-        # TRANSLATE FUNKTION AUFRUFEN
-        # NOTWENIDGE VARIABLEN IMPORTIEN/BERECHNEN
+        # ICH HOFF MAL DASS DAS SO FUNKTIONIERT DEN CHECKPOINT ZU LADEN UND DAS ZU EVALUIEREN
+        checkpoint = tf.train.Checkpoint(optimizer=tf.keras.optimizers.Adam(), encoder=self.encoder, decoder=self.decoder)
+        checkpoint.restore(tf.train.latest_checkpoint(checkpoint_dir))
+        self.translate(email)
 
-# # ============================================================
-# # restoring the latest checkpoint and test the model
-# # ============================================================
-# checkpoint.restore(tf.train.latest_checkpoint(checkpoint_dir))
-# translate(u"INPUT E-MAIL HERE")
+
 
