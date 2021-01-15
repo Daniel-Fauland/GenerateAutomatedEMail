@@ -189,8 +189,9 @@ class model():
             print("dec_input done.")
 
             # Teacher forcing - feeding the target as the next input
+            print(targ.shape[1])
             for t in range(1, targ.shape[1]):
-                print("iteration", t)
+                print("target shape", t)
                 # passing enc_output to the decoder
                 predictions, dec_hidden, _ = self.decoder(dec_input, dec_hidden, enc_output)
                 loss += self.loss_function(targ[:, t], predictions)
@@ -208,8 +209,10 @@ class model():
     # Evaluate
     # ============================================================
     def evaluate(self, sentence):
+        print("sentence pre: ", str(sentence))
         attention_plot = np.zeros((self.max_length_targ, self.max_length_inp))
         sentence = self.preprocess_sentence(sentence)
+        print("sentence post: ", str(sentence))
         inputs = [self.inp_lang_tok.word_index[i] for i in sentence.split(' ')]
         inputs = tf.keras.preprocessing.sequence.pad_sequences([inputs], maxlen=self.max_length_inp, padding='post')
         inputs = tf.convert_to_tensor(inputs)
@@ -249,16 +252,22 @@ class model():
     # run function to train the model
     # ============================================================
     def trainModel(self, settings):
-        # # TF GPU fix
-        # config = tf.compat.v1.ConfigProto(gpu_options=tf.compat.v1.GPUOptions(per_process_gpu_memory_fraction=0.8))
-        # config.gpu_options.allow_growth = True
-        # session = tf.compat.v1.Session(config=config)
-        # tf.compat.v1.keras.backend.set_session(session)
+
+        # TF GPU FIX
+        config = tf.compat.v1.ConfigProto(gpu_options=tf.compat.v1.GPUOptions(per_process_gpu_memory_fraction=0.8))
+        config.gpu_options.allow_growth = True
+        config.log_device_placement = True
+        session = tf.compat.v1.Session(config=config)
+        tf.compat.v1.keras.backend.set_session(session)
         os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
         filepath = settings["filepath"]
         emails = pd.read_csv(filepath)
-
+        # REDUCE DATA
+        print("len data: {}".format(len(emails)))
+        emails = emails[:settings["data_size"]]
+        print("reduced data length: {}". format(len(emails)))
+        print("start preprocessing. NOTE: This will take a while.")
         body, reply = self.create_dataset(emails)
         input_tensor, inp_lang_tok, max_length_inp = self.tokenize(body)
         target_tensor, self.targ_lang_tok, max_length_targ = self.tokenize(reply)
@@ -289,12 +298,12 @@ class model():
         self.decoder = model.Decoder(self.vocab_tar_size, self.embedding_dim, self.units, self.BATCH_SIZE)
         sample_decoder_output, _, _ = self.decoder(tf.random.uniform((self.BATCH_SIZE, 1)), sample_hidden, sample_output)
 
-        optimizer = tf.keras.optimizers.Adam()
+        self.optimizer = tf.keras.optimizers.Adam()
         self.loss_object = tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True, reduction='none')
 
         checkpoint_dir = settings["checkpoint_dir"]
         checkpoint_prefix = os.path.join(checkpoint_dir, "ckpt")
-        checkpoint = tf.train.Checkpoint(optimizer=optimizer, encoder=self.encoder, decoder=self.decoder)
+        checkpoint = tf.train.Checkpoint(optimizer=self.optimizer, encoder=self.encoder, decoder=self.decoder)
 
         EPOCHS = settings["EPOCHS"]
         for epoch in range(EPOCHS):
@@ -323,8 +332,36 @@ class model():
     # run function to predict emails
     # ============================================================
     def predict(self, settings):
+        # TF GPU fix
+        config = tf.compat.v1.ConfigProto(gpu_options=tf.compat.v1.GPUOptions(per_process_gpu_memory_fraction=0.8))
+        config.gpu_options.allow_growth = True
+        session = tf.compat.v1.Session(config=config)
+        tf.compat.v1.keras.backend.set_session(session)
+
         checkpoint_dir = settings["checkpoint_dir"]
         email = settings["email"]
+        self.BATCH_SIZE = settings["BATCH_SIZE"]
+        self.embedding_dim = settings["embedding_dim"]
+        self.units = settings["units"]
+        filepath = settings["filepath"]
+        emails = pd.read_csv(filepath)
+        # LIMIT DATASIZE TO X
+        emails = emails[:settings["data_size"]]
+        body, reply = self.create_dataset(emails)
+        self.body = body
+
+        input_tensor, inp_lang_tok, max_length_inp = self.tokenize(emails)
+        target_tensor, targ_lang_tok, max_length_targ = self.tokenize(emails)
+        self.vocab_inp_size = len(inp_lang_tok.word_index) + 1
+        self.vocab_tar_size = len(targ_lang_tok.word_index) + 1
+
+        self.max_length_inp = max_length_inp
+        self.max_length_targ = max_length_targ
+        self.inp_lang_tok = inp_lang_tok
+        self.targ_lang_tok = targ_lang_tok
+
+        self.encoder = model.Encoder(self.vocab_inp_size, self.embedding_dim, self.units, self.BATCH_SIZE)
+        self.decoder = model.Decoder(self.vocab_tar_size, self.embedding_dim, self.units, self.BATCH_SIZE)
 
         # ICH HOFF MAL DASS DAS SO FUNKTIONIERT DEN CHECKPOINT ZU LADEN UND DAS ZU EVALUIEREN
         checkpoint = tf.train.Checkpoint(optimizer=tf.keras.optimizers.Adam(), encoder=self.encoder, decoder=self.decoder)
