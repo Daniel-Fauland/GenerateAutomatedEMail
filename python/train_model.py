@@ -2,8 +2,8 @@ from python.model import model
 import time
 
 
-settings = {"filepath": "../data/data.csv", "BATCH_SIZE": 64, "embedding_dim": 256, "units": 512, "EPOCHS": 15,
-            "data_size": None, "checkpoint_dir": "../checkpoints"}
+settings = {"filepath": "../data/en_de.csv", "BATCH_SIZE": 64, "embedding_dim": 256, "units": 1024, "EPOCHS": 10,
+            "data_size": 2000, "checkpoint_dir": "../checkpoints"}
 # data_size limits amount of data that is used. None = full data
 
 time_start = time.time()
