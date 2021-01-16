@@ -44,8 +44,8 @@ class model():
         body = []
         reply = []
         for i in range(len(emails)):
-            s1 = emails.iloc[i]["body"]
-            s2 = emails.iloc[i]["reply"]
+            s1 = str(emails.iloc[i]["english"])
+            s2 = str(emails.iloc[i]["german"])
             body.append(self.preprocess_sentence(s1))
             reply.append(self.preprocess_sentence(s2))
         return body, reply
@@ -84,6 +84,7 @@ class model():
                                            return_sequences=True,
                                            return_state=True,
                                            recurrent_initializer='glorot_uniform')
+
 
         def call(self, x, hidden):
             x = self.embedding(x)
@@ -190,7 +191,7 @@ class model():
 
             # Teacher forcing - feeding the target as the next input
             for t in range(1, targ.shape[1]):
-                print("iteration", t)
+                print("target shape", t, "out of", targ.shape[1] - 1)
                 # passing enc_output to the decoder
                 predictions, dec_hidden, _ = self.decoder(dec_input, dec_hidden, enc_output)
                 loss += self.loss_function(targ[:, t], predictions)
@@ -241,23 +242,36 @@ class model():
     # ============================================================
     def translate(self, sentence):
         result, sentence, attention_plot = self.evaluate(sentence)
-        print('Input: %s' % (sentence))
+        result = result[:-6]
+        # print('Input: %s' % (sentence))
+        print("=" * 60)
         print('Predicted answer: {}'.format(result))
+        print("=" * 60, "\n")
 
 
     # ============================================================
     # run function to train the model
     # ============================================================
     def trainModel(self, settings):
-        # TF GPU fix
-        config = tf.compat.v1.ConfigProto(gpu_options=tf.compat.v1.GPUOptions(per_process_gpu_memory_fraction=0.8))
-        config.gpu_options.allow_growth = True
-        session = tf.compat.v1.Session(config=config)
-        tf.compat.v1.keras.backend.set_session(session)
+
+        # # TF GPU FIX
+        # config = tf.compat.v1.ConfigProto(gpu_options=tf.compat.v1.GPUOptions(per_process_gpu_memory_fraction=0.8))
+        # config.gpu_options.allow_growth = True
+        # config.log_device_placement = True
+        # session = tf.compat.v1.Session(config=config)
+        # tf.compat.v1.keras.backend.set_session(session)
+        # os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
+
+        os.environ["CUDA_VISIBLE_DEVICES"] = "-1"  # Force TF to use only the CPU
+
 
         filepath = settings["filepath"]
         emails = pd.read_csv(filepath)
-
+        # REDUCE DATA
+        print("len data: {}".format(len(emails)))
+        emails = emails[:settings["data_size"]]
+        print("reduced data length: {}". format(len(emails)))
+        print("start preprocessing. NOTE: This will take a while.")
         body, reply = self.create_dataset(emails)
         input_tensor, inp_lang_tok, max_length_inp = self.tokenize(body)
         target_tensor, self.targ_lang_tok, max_length_targ = self.tokenize(reply)
@@ -281,19 +295,20 @@ class model():
 
         sample_hidden = self.encoder.initialize_hidden_state()
         sample_output, sample_hidden = self.encoder(example_input_batch, sample_hidden)
-
+        print("This is the last working row.")
         attention_layer = model.BahdanauAttention(10)
         attention_result, attention_weights = attention_layer(sample_hidden, sample_output)
+        print("Program already crashed at this point.")
 
         self.decoder = model.Decoder(self.vocab_tar_size, self.embedding_dim, self.units, self.BATCH_SIZE)
         sample_decoder_output, _, _ = self.decoder(tf.random.uniform((self.BATCH_SIZE, 1)), sample_hidden, sample_output)
 
-        optimizer = tf.keras.optimizers.Adam()
+        self.optimizer = tf.keras.optimizers.Adam()
         self.loss_object = tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True, reduction='none')
 
         checkpoint_dir = settings["checkpoint_dir"]
         checkpoint_prefix = os.path.join(checkpoint_dir, "ckpt")
-        checkpoint = tf.train.Checkpoint(optimizer=optimizer, encoder=self.encoder, decoder=self.decoder)
+        checkpoint = tf.train.Checkpoint(optimizer=self.optimizer, encoder=self.encoder, decoder=self.decoder)
 
         EPOCHS = settings["EPOCHS"]
         for epoch in range(EPOCHS):
@@ -304,12 +319,12 @@ class model():
             total_loss = 0
 
             for (batch, (inp, targ)) in enumerate(dataset.take(steps_per_epoch)):
-                print(batch)
+                # print(batch)
                 batch_loss = self.train_step(inp, targ, enc_hidden)
                 total_loss += batch_loss
 
-            if batch % 100 == 0:
-                print('Epoch {} Batch {} Loss {:.4f}'.format(epoch + 1, batch, batch_loss.numpy()))
+                if batch % 100 == 0:
+                    print('Epoch {} Batch {} Loss {:.4f}'.format(epoch + 1, batch, batch_loss.numpy()))
             # saving (checkpoint) the model every 2 epochs
             if (epoch + 1) % 2 == 0:
                 checkpoint.save(file_prefix=checkpoint_prefix)
@@ -322,16 +337,48 @@ class model():
     # run function to predict emails
     # ============================================================
     def predict(self, settings):
+        # # TF GPU fix
+        # config = tf.compat.v1.ConfigProto(gpu_options=tf.compat.v1.GPUOptions(per_process_gpu_memory_fraction=0.8))
+        # config.gpu_options.allow_growth = True
+        # session = tf.compat.v1.Session(config=config)
+        # tf.compat.v1.keras.backend.set_session(session)
+
+        os.environ["CUDA_VISIBLE_DEVICES"] = "-1"  # Force TF to use only the CPU
+
         checkpoint_dir = settings["checkpoint_dir"]
         email = settings["email"]
+        self.BATCH_SIZE = settings["BATCH_SIZE"]
+        self.embedding_dim = settings["embedding_dim"]
+        self.units = settings["units"]
+        filepath = settings["filepath"]
+        emails = pd.read_csv(filepath)
+        # LIMIT DATASIZE TO X
+        emails = emails[:settings["data_size"]]
+        body, reply = self.create_dataset(emails)
+        # self.body = body
 
-        # CHECKPOINT LADEN
-        # TRANSLATE FUNKTION AUFRUFEN
-        # NOTWENIDGE VARIABLEN IMPORTIEN/BERECHNEN
+        input_tensor, inp_lang_tok, max_length_inp = self.tokenize(body)
+        target_tensor, targ_lang_tok, max_length_targ = self.tokenize(reply)
+        self.vocab_inp_size = len(inp_lang_tok.word_index) + 1
+        self.vocab_tar_size = len(targ_lang_tok.word_index) + 1
 
-# # ============================================================
-# # restoring the latest checkpoint and test the model
-# # ============================================================
-# checkpoint.restore(tf.train.latest_checkpoint(checkpoint_dir))
-# translate(u"INPUT E-MAIL HERE")
+        self.max_length_inp = max_length_inp
+        self.max_length_targ = max_length_targ
+        self.inp_lang_tok = inp_lang_tok
+        self.targ_lang_tok = targ_lang_tok
+
+        self.encoder = model.Encoder(self.vocab_inp_size, self.embedding_dim, self.units, self.BATCH_SIZE)
+        self.decoder = model.Decoder(self.vocab_tar_size, self.embedding_dim, self.units, self.BATCH_SIZE)
+
+        # ICH HOFF MAL DASS DAS SO FUNKTIONIERT DEN CHECKPOINT ZU LADEN UND DAS ZU EVALUIEREN
+        checkpoint = tf.train.Checkpoint(optimizer=tf.keras.optimizers.Adam(), encoder=self.encoder, decoder=self.decoder)
+        checkpoint.restore(tf.train.latest_checkpoint(checkpoint_dir)).expect_partial()
+
+        while True:
+            string = input("Type something in english to translate it to german (write 'quit' to exit): ")
+            if string.lower() == "quit":
+                break
+            self.translate(string)
+
+
 
