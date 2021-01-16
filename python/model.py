@@ -190,9 +190,8 @@ class model():
             print("dec_input done.")
 
             # Teacher forcing - feeding the target as the next input
-            print(targ.shape[1])
             for t in range(1, targ.shape[1]):
-                print("target shape", t)
+                print("target shape", t, "out of", targ.shape[1] - 1)
                 # passing enc_output to the decoder
                 predictions, dec_hidden, _ = self.decoder(dec_input, dec_hidden, enc_output)
                 loss += self.loss_function(targ[:, t], predictions)
@@ -243,8 +242,11 @@ class model():
     # ============================================================
     def translate(self, sentence):
         result, sentence, attention_plot = self.evaluate(sentence)
-        print('Input: %s' % (sentence))
+        result = result[:-6]
+        # print('Input: %s' % (sentence))
+        print("=" * 60)
         print('Predicted answer: {}'.format(result))
+        print("=" * 60, "\n")
 
 
     # ============================================================
@@ -258,7 +260,10 @@ class model():
         # config.log_device_placement = True
         # session = tf.compat.v1.Session(config=config)
         # tf.compat.v1.keras.backend.set_session(session)
-        os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
+        # os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
+
+        os.environ["CUDA_VISIBLE_DEVICES"] = "-1"  # Force TF to use only the CPU
+
 
         filepath = settings["filepath"]
         emails = pd.read_csv(filepath)
@@ -288,13 +293,13 @@ class model():
 
         self.encoder = model.Encoder(self.vocab_inp_size, self.embedding_dim, self.units, self.BATCH_SIZE)
 
-
         sample_hidden = self.encoder.initialize_hidden_state()
         sample_output, sample_hidden = self.encoder(example_input_batch, sample_hidden)
-        print("Training starts now.")
+        print("This is the last working row.")
         attention_layer = model.BahdanauAttention(10)
         attention_result, attention_weights = attention_layer(sample_hidden, sample_output)
         print("Program already crashed at this point.")
+
         self.decoder = model.Decoder(self.vocab_tar_size, self.embedding_dim, self.units, self.BATCH_SIZE)
         sample_decoder_output, _, _ = self.decoder(tf.random.uniform((self.BATCH_SIZE, 1)), sample_hidden, sample_output)
 
@@ -332,11 +337,13 @@ class model():
     # run function to predict emails
     # ============================================================
     def predict(self, settings):
-        # TF GPU fix
-        config = tf.compat.v1.ConfigProto(gpu_options=tf.compat.v1.GPUOptions(per_process_gpu_memory_fraction=0.8))
-        config.gpu_options.allow_growth = True
-        session = tf.compat.v1.Session(config=config)
-        tf.compat.v1.keras.backend.set_session(session)
+        # # TF GPU fix
+        # config = tf.compat.v1.ConfigProto(gpu_options=tf.compat.v1.GPUOptions(per_process_gpu_memory_fraction=0.8))
+        # config.gpu_options.allow_growth = True
+        # session = tf.compat.v1.Session(config=config)
+        # tf.compat.v1.keras.backend.set_session(session)
+
+        os.environ["CUDA_VISIBLE_DEVICES"] = "-1"  # Force TF to use only the CPU
 
         checkpoint_dir = settings["checkpoint_dir"]
         email = settings["email"]
@@ -366,7 +373,12 @@ class model():
         # ICH HOFF MAL DASS DAS SO FUNKTIONIERT DEN CHECKPOINT ZU LADEN UND DAS ZU EVALUIEREN
         checkpoint = tf.train.Checkpoint(optimizer=tf.keras.optimizers.Adam(), encoder=self.encoder, decoder=self.decoder)
         checkpoint.restore(tf.train.latest_checkpoint(checkpoint_dir)).expect_partial()
-        self.translate(email)
+
+        while True:
+            string = input("Type something in english to translate it to german (write 'quit' to exit): ")
+            if string.lower() == "quit":
+                break
+            self.translate(string)
 
 
 

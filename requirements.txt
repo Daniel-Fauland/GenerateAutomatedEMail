@@ -1,11 +1,5 @@
-nltk
 numpy
-scipy
 pandas
-matplotlib
-opencv-python
-tflearn
-tensorflow-gpu
-windows-curses
-tqdm
+tensorflow
 scikit-learn
+tqdm

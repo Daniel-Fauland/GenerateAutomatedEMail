@@ -86,7 +86,7 @@ def find_pairs(subjects_filtered, emails):
 # Save processed dataframe as a new csv file
 # ============================================================
 def save_csv(final):
-    path = "../data/processed.csv"
+    path = "../data/processed_emails.csv"
     final.to_csv(path)
     print("Preprocessing complete. New csv file saved in:", path)
     return
