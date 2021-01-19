@@ -44,8 +44,8 @@ class model():
         body = []
         reply = []
         for i in range(len(emails)):
-            s1 = str(emails.iloc[i]["english"])
-            s2 = str(emails.iloc[i]["german"])
+            s1 = str(emails.iloc[i]["question"])
+            s2 = str(emails.iloc[i]["answer"])
             body.append(self.preprocess_sentence(s1))
             reply.append(self.preprocess_sentence(s2))
         return body, reply
@@ -242,7 +242,7 @@ class model():
     # ============================================================
     def translate(self, sentence):
         result, sentence, attention_plot = self.evaluate(sentence)
-        result = result[:-6]
+        result = result[:32]
         # print('Input: %s' % (sentence))
         print("=" * 60)
         print('Predicted answer: {}'.format(result))
@@ -375,7 +375,7 @@ class model():
         checkpoint.restore(tf.train.latest_checkpoint(checkpoint_dir)).expect_partial()
 
         while True:
-            string = input("Type something in english to translate it to german (write 'quit' to exit): ")
+            string = input("Type something in english to generate answer (write 'quit' to exit): ")
             if string.lower() == "quit":
                 break
             self.translate(string)
