@@ -264,7 +264,6 @@ class model():
 
         os.environ["CUDA_VISIBLE_DEVICES"] = "-1"  # Force TF to use only the CPU
 
-
         filepath = settings["filepath"]
         emails = pd.read_csv(filepath)
         # REDUCE DATA
@@ -330,7 +329,6 @@ class model():
             print('Time taken for 1 epoch {} sec\n'.format(time.time() - start))
 
 
-
     # ============================================================
     # run function to predict emails
     # ============================================================
@@ -344,7 +342,6 @@ class model():
         os.environ["CUDA_VISIBLE_DEVICES"] = "-1"  # Force TF to use only the CPU
 
         checkpoint_dir = settings["checkpoint_dir"]
-        email = settings["email"]
         self.BATCH_SIZE = settings["BATCH_SIZE"]
         self.embedding_dim = settings["embedding_dim"]
         self.units = settings["units"]
@@ -372,10 +369,32 @@ class model():
         checkpoint.restore(tf.train.latest_checkpoint(checkpoint_dir)).expect_partial()
 
         while True:
-            string = input("Type something in english to generate answer (write 'quit' to exit): ")
+            string = input("Write something in english to generate an answer (type 'quit' to exit): ")
+            print()
             if string.lower() == "quit":
                 break
-            self.translate(string)
+            part = self.preprocess_sentence(string)
+            part = part.split()
+            rmv = []
+            bdy = []
+            for x in body:
+                word = x.split()
+                for s in word:
+                    bdy.append(s)
+
+            for i in part:
+                if i not in bdy:
+                    print("The word '{}' is not in the dictionary. Therefore it was removed.".format(i))
+                    rmv.append(i)
+
+            for n in rmv:
+                part.remove(n)
+            string = ' '.join(word for word in part)
+
+            try:
+                self.translate(string)
+            except:
+                print("Unknown words in Sentence. Pls try again.")
 
 
 
