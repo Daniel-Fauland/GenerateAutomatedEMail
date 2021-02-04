@@ -39,3 +39,13 @@ or use the already provided [processed_emails.csv](data/processed_emails.csv) fi
 - To test the model run [predict_model.py](python/predict_model.py)
 - NOTE: The parameters in the settings dictionary must be the same for training and predicting
 
+### Run the Thunderbrid plugin
+1. Install Thunderbird
+2. Go to the right top where the settings are 
+3. Click Add-ons
+4. Click settings for plugins and select Debug Add-ons
+5. Select the manifest.json file
+6. Run the file [websocket.py](python/websocket.py)
+7. Reload the Plugin
+- Now you can use the plugin. The console always tells you if your server is running. 
+- To get to the console select Inspect.
