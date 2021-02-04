@@ -17,12 +17,19 @@ pip install -r requirements.txt
 ```
 
 ### Get the training data
-1. Download data here [here](https://drive.google.com/file/d/17R2aP9UjUHQo5iLzXtgxsbk1K9z1Z9v5/view?usp=sharing) <br/>
-2. Move the 'amazon.csv' file to folder [data](data)
+- Download the data here [here](https://drive.google.com/drive/folders/1OQe9VRXQxIJAQGgw5Zq_diYZXpBPHOu0?usp=sharing) <br/>
+- 'Amazon.zip' contains the non preprocessed data. Either extract the zip file within the [data](data) folder
+  or download the already preprocessed 'amazon.csv' file and put it inside the [data](data) folder.
+- For the Enron E-Mail dataset either download 'emails.csv' and put it inside the [data](data) folder
+or use the already provided [processed_emails.csv](data/processed_emails.csv) file.
 
 ### Preprocess data
-To preprocess the amazon data run [preprocess_amazon.py](python/preprocess_amazon.py) <br/>
-(Not necessary in this case because the csv file from Google Drive is already preprocessed)
+- To preprocess the amazon data run [preprocess_amazon.py](python/preprocess_amazon.py). <br/> 
+  (Not necessary if you use the already preprocessed 'amazon.py' file).
+  
+- To preprocess the Enron E-Mail dataset run [preprocess_emails.py](python/preprocess_emails.py). <br/> 
+  (Not necessary if you use the already preprocessed [processed_emails.csv](data/processed_emails.csv) file). 
+
 
 ### Train the model
 - To train the data run [train_model.py](python/train_model.py)
