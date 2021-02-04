@@ -39,7 +39,7 @@ or use the already provided [processed_emails.csv](data/processed_emails.csv) fi
 - To test the model run [predict_model.py](python/predict_model.py)
 - NOTE: The parameters in the settings dictionary must be the same for training and predicting
 
-### Run the Thunderbrid plugin
+### Run the Thunderbird plugin
 1. Install Thunderbird
 2. Go to the right top where the settings are 
 3. Click Add-ons
