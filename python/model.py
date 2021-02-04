@@ -6,6 +6,7 @@ import numpy as np
 import pandas as pd
 import os
 import time
+import pickle
 
 class model():
     def __init__(self):
@@ -243,7 +244,6 @@ class model():
     def translate(self, sentence):
         result, sentence, attention_plot = self.evaluate(sentence)
         result = result[:32]
-        # print('Input: %s' % (sentence))
         print("=" * 60)
         print('Predicted answer: {}'.format(result))
         print("=" * 60, "\n")
@@ -263,7 +263,6 @@ class model():
         # os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
         os.environ["CUDA_VISIBLE_DEVICES"] = "-1"  # Force TF to use only the CPU
-
 
         filepath = settings["filepath"]
         emails = pd.read_csv(filepath)
@@ -295,10 +294,8 @@ class model():
 
         sample_hidden = self.encoder.initialize_hidden_state()
         sample_output, sample_hidden = self.encoder(example_input_batch, sample_hidden)
-        print("This is the last working row.")
         attention_layer = model.BahdanauAttention(10)
         attention_result, attention_weights = attention_layer(sample_hidden, sample_output)
-        print("Program already crashed at this point.")
 
         self.decoder = model.Decoder(self.vocab_tar_size, self.embedding_dim, self.units, self.BATCH_SIZE)
         sample_decoder_output, _, _ = self.decoder(tf.random.uniform((self.BATCH_SIZE, 1)), sample_hidden, sample_output)
@@ -332,7 +329,6 @@ class model():
             print('Time taken for 1 epoch {} sec\n'.format(time.time() - start))
 
 
-
     # ============================================================
     # run function to predict emails
     # ============================================================
@@ -346,7 +342,6 @@ class model():
         os.environ["CUDA_VISIBLE_DEVICES"] = "-1"  # Force TF to use only the CPU
 
         checkpoint_dir = settings["checkpoint_dir"]
-        email = settings["email"]
         self.BATCH_SIZE = settings["BATCH_SIZE"]
         self.embedding_dim = settings["embedding_dim"]
         self.units = settings["units"]
@@ -355,7 +350,6 @@ class model():
         # LIMIT DATASIZE TO X
         emails = emails[:settings["data_size"]]
         body, reply = self.create_dataset(emails)
-        # self.body = body
 
         input_tensor, inp_lang_tok, max_length_inp = self.tokenize(body)
         target_tensor, targ_lang_tok, max_length_targ = self.tokenize(reply)
@@ -370,15 +364,37 @@ class model():
         self.encoder = model.Encoder(self.vocab_inp_size, self.embedding_dim, self.units, self.BATCH_SIZE)
         self.decoder = model.Decoder(self.vocab_tar_size, self.embedding_dim, self.units, self.BATCH_SIZE)
 
-        # ICH HOFF MAL DASS DAS SO FUNKTIONIERT DEN CHECKPOINT ZU LADEN UND DAS ZU EVALUIEREN
+
         checkpoint = tf.train.Checkpoint(optimizer=tf.keras.optimizers.Adam(), encoder=self.encoder, decoder=self.decoder)
         checkpoint.restore(tf.train.latest_checkpoint(checkpoint_dir)).expect_partial()
 
         while True:
-            string = input("Type something in english to generate answer (write 'quit' to exit): ")
+            string = input("Write something in english to generate an answer (type 'quit' to exit): ")
+            print()
             if string.lower() == "quit":
                 break
-            self.translate(string)
+            part = self.preprocess_sentence(string)
+            part = part.split()
+            rmv = []
+            bdy = []
+            for x in body:
+                word = x.split()
+                for s in word:
+                    bdy.append(s)
+
+            for i in part:
+                if i not in bdy:
+                    print("The word '{}' is not in the dictionary. Therefore it was removed.".format(i))
+                    rmv.append(i)
+
+            for n in rmv:
+                part.remove(n)
+            string = ' '.join(word for word in part)
+
+            try:
+                self.translate(string)
+            except:
+                print("Unknown words in Sentence. Pls try again.")
 
 
 
